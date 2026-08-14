@@ -30,8 +30,8 @@ public class FastUseMod implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);
 
-        FastUseConfig.get();
-        LOGGER.info("Fast Use ready");
+        FastUseConfig config = FastUseConfig.get();
+        LOGGER.info("Fast Use ready (enabled={}, requireEndCrystal={})", config.enabled, config.requireEndCrystal);
     }
 
     private void onEndTick(Minecraft client) {
@@ -40,9 +40,15 @@ public class FastUseMod implements ClientModInitializer {
             config.enabled = !config.enabled;
             config.save();
             if (client.gui != null) {
-                client.gui.setOverlayMessage(Component.translatable(
-                        config.enabled ? "message.fast_use_mod.enabled" : "message.fast_use_mod.disabled"), false);
+                client.gui.setOverlayMessage(Component.translatable(message(config)), false);
             }
         }
+    }
+
+    private static String message(FastUseConfig config) {
+        if (!config.enabled) {
+            return "message.fast_use_mod.disabled";
+        }
+        return config.requireEndCrystal ? "message.fast_use_mod.enabled_crystal" : "message.fast_use_mod.enabled";
     }
 }

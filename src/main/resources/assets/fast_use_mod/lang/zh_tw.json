@@ -2,5 +2,6 @@
 	"key.category.fast_use_mod.main": "快速使用",
 	"key.fast_use_mod.toggle": "開關快速使用",
 	"message.fast_use_mod.enabled": "快速使用：開啟",
+	"message.fast_use_mod.enabled_crystal": "快速使用：開啟（需手持終界水晶）",
 	"message.fast_use_mod.disabled": "快速使用：關閉"
 }
