@@ -5,7 +5,11 @@ import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.RespawnAnchorBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -25,6 +29,9 @@ public class FastUseConfig {
     public int useDelayTicks = 0;
     public boolean removeBreakDelay = true;
     public boolean removeMissDelay = true;
+    /** Stop charging a respawn anchor once it holds this many charges, and place the glowstone instead. */
+    public boolean limitAnchorCharge = true;
+    public int anchorChargeLimit = 1;
 
     public static FastUseConfig get() {
         if (instance == null) {
@@ -69,6 +76,27 @@ public class FastUseConfig {
 
     public int useDelayTicks() {
         return active() ? Math.max(0, this.useDelayTicks) : Integer.MAX_VALUE;
+    }
+
+    /**
+     * True when this click would top up a respawn anchor that already holds enough charges, so the
+     * glowstone should be placed as a block instead. Deliberately independent of {@link #active()}:
+     * the hand holds glowstone here, not an end crystal.
+     */
+    public boolean placeInsteadOfCharge(LocalPlayer player, InteractionHand hand, BlockHitResult hitResult) {
+        if (!this.enabled || !this.limitAnchorCharge) {
+            return false;
+        }
+        if (!player.getItemInHand(hand).is(Items.GLOWSTONE)) {
+            return false;
+        }
+        BlockState state = player.level().getBlockState(hitResult.getBlockPos());
+        if (!(state.getBlock() instanceof RespawnAnchorBlock)) {
+            return false;
+        }
+        int charge = state.getValue(RespawnAnchorBlock.CHARGE);
+        // At MAX_CHARGES vanilla no longer charges (it sets spawn or explodes), so leave that click alone.
+        return charge >= Math.max(0, this.anchorChargeLimit) && charge < RespawnAnchorBlock.MAX_CHARGES;
     }
 
     private static Path path() {
