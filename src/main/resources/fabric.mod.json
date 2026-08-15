@@ -3,7 +3,7 @@
 	"id": "fast_use_mod",
 	"version": "${version}",
 	"name": "Fast Use",
-	"description": "While you hold an end crystal, lets you place and mine at the same time and removes the delay between item uses.",
+	"description": "Removes the delay between item uses while you hold an end crystal or glowstone.",
 	"authors": [
 		"sql1024-sql"
 	],

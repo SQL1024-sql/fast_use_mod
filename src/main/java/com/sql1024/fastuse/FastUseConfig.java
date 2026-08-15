@@ -7,13 +7,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.RespawnAnchorBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -27,23 +22,17 @@ public class FastUseConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static FastUseConfig instance;
 
-    private transient List<Item> resolvedItems;
-
     public static final List<String> DEFAULT_ITEMS = List.of("minecraft:end_crystal", "minecraft:glowstone");
 
+    private transient List<Item> resolvedItems;
+
     public boolean enabled = true;
-    /** When true (the default) the features below only work while one of {@link #items} is held. */
+    /** When true (the default) the use delay is only removed while one of {@link #items} is held. */
     public boolean restrictToItems = true;
-    /** Item ids that switch fast use on: the end crystal, plus the glowstone that charges anchors. */
+    /** Item ids that switch fast use on. */
     public List<String> items = DEFAULT_ITEMS;
-    public boolean placeWhileMining = true;
-    public boolean mineWhileUsing = true;
+    /** Ticks to leave between item uses while fast use is active; 0 removes the delay entirely. */
     public int useDelayTicks = 0;
-    public boolean removeBreakDelay = true;
-    public boolean removeMissDelay = true;
-    /** Stop charging a respawn anchor once it holds this many charges, and place the glowstone instead. */
-    public boolean limitAnchorCharge = true;
-    public int anchorChargeLimit = 1;
 
     public static FastUseConfig get() {
         if (instance == null) {
@@ -104,45 +93,9 @@ public class FastUseConfig {
         return this.enabled && (!this.restrictToItems || holdingActivationItem());
     }
 
-    public boolean placeWhileMining() {
-        return active() && this.placeWhileMining;
-    }
-
-    public boolean mineWhileUsing() {
-        return active() && this.mineWhileUsing;
-    }
-
-    public boolean removeBreakDelay() {
-        return active() && this.removeBreakDelay;
-    }
-
-    public boolean removeMissDelay() {
-        return active() && this.removeMissDelay;
-    }
-
+    /** The use delay to enforce: the configured one while active, otherwise vanilla's own. */
     public int useDelayTicks() {
         return active() ? Math.max(0, this.useDelayTicks) : Integer.MAX_VALUE;
-    }
-
-    /**
-     * True when this click would top up a respawn anchor that already holds enough charges, so the
-     * glowstone should be placed as a block instead. Deliberately independent of {@link #active()}:
-     * the hand holds glowstone here, not an end crystal.
-     */
-    public boolean placeInsteadOfCharge(LocalPlayer player, InteractionHand hand, BlockHitResult hitResult) {
-        if (!this.enabled || !this.limitAnchorCharge) {
-            return false;
-        }
-        if (!player.getItemInHand(hand).is(Items.GLOWSTONE)) {
-            return false;
-        }
-        BlockState state = player.level().getBlockState(hitResult.getBlockPos());
-        if (!(state.getBlock() instanceof RespawnAnchorBlock)) {
-            return false;
-        }
-        int charge = state.getValue(RespawnAnchorBlock.CHARGE);
-        // At MAX_CHARGES vanilla no longer charges (it sets spawn or explodes), so leave that click alone.
-        return charge >= Math.max(0, this.anchorChargeLimit) && charge < RespawnAnchorBlock.MAX_CHARGES;
     }
 
     private static Path path() {
