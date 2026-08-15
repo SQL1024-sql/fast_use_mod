@@ -2,6 +2,6 @@
 	"key.category.fast_use_mod.main": "Fast Use",
 	"key.fast_use_mod.toggle": "Toggle Fast Use",
 	"message.fast_use_mod.enabled": "Fast Use: on",
-	"message.fast_use_mod.enabled_crystal": "Fast Use: on (end crystal only)",
+	"message.fast_use_mod.enabled_items": "Fast Use: on (listed items only)",
 	"message.fast_use_mod.disabled": "Fast Use: off"
 }

@@ -31,7 +31,8 @@ public class FastUseMod implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);
 
         FastUseConfig config = FastUseConfig.get();
-        LOGGER.info("Fast Use ready (enabled={}, requireEndCrystal={})", config.enabled, config.requireEndCrystal);
+        LOGGER.info("Fast Use ready (enabled={}, restrictToItems={}, items={})",
+                config.enabled, config.restrictToItems, config.items);
     }
 
     private void onEndTick(Minecraft client) {
@@ -49,6 +50,6 @@ public class FastUseMod implements ClientModInitializer {
         if (!config.enabled) {
             return "message.fast_use_mod.disabled";
         }
-        return config.requireEndCrystal ? "message.fast_use_mod.enabled_crystal" : "message.fast_use_mod.enabled";
+        return config.restrictToItems ? "message.fast_use_mod.enabled_items" : "message.fast_use_mod.enabled";
     }
 }

@@ -5,7 +5,11 @@ import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.RespawnAnchorBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -16,14 +20,22 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 public class FastUseConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static FastUseConfig instance;
 
+    private transient List<Item> resolvedItems;
+
+    public static final List<String> DEFAULT_ITEMS = List.of("minecraft:end_crystal", "minecraft:glowstone");
+
     public boolean enabled = true;
-    /** When true (the default) every feature below only works while an end crystal is held. */
-    public boolean requireEndCrystal = true;
+    /** When true (the default) the features below only work while one of {@link #items} is held. */
+    public boolean restrictToItems = true;
+    /** Item ids that switch fast use on: the end crystal, plus the glowstone that charges anchors. */
+    public List<String> items = DEFAULT_ITEMS;
     public boolean placeWhileMining = true;
     public boolean mineWhileUsing = true;
     public int useDelayTicks = 0;
@@ -40,8 +52,35 @@ public class FastUseConfig {
         return instance;
     }
 
-    /** True while the client player holds an end crystal in either hand. */
-    public static boolean holdingEndCrystal() {
+    /** The items from {@link #items} that exist in the registry, resolved once and kept. */
+    public List<Item> activationItems() {
+        if (this.resolvedItems == null) {
+            List<Item> resolved = new ArrayList<>();
+            for (String id : this.items == null ? DEFAULT_ITEMS : this.items) {
+                Item item = lookup(id);
+                if (item == null) {
+                    FastUseMod.LOGGER.warn("Unknown item id in fast_use_mod.json: {}", id);
+                } else {
+                    resolved.add(item);
+                }
+            }
+            this.resolvedItems = resolved;
+        }
+        return this.resolvedItems;
+    }
+
+    private static Item lookup(String id) {
+        Identifier key = id == null ? null : Identifier.tryParse(id);
+        if (key == null) {
+            return null;
+        }
+        // ITEM is a defaulted registry, so an unknown id resolves to air rather than nothing.
+        Item item = BuiltInRegistries.ITEM.getOptional(key).orElse(null);
+        return item != null && key.equals(BuiltInRegistries.ITEM.getKey(item)) ? item : null;
+    }
+
+    /** True while the client player holds one of the activation items in either hand. */
+    public boolean holdingActivationItem() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) {
             return false;
@@ -50,12 +89,19 @@ public class FastUseConfig {
         if (player == null) {
             return false;
         }
-        return player.getMainHandItem().is(Items.END_CRYSTAL) || player.getOffhandItem().is(Items.END_CRYSTAL);
+        ItemStack mainHand = player.getMainHandItem();
+        ItemStack offHand = player.getOffhandItem();
+        for (Item item : activationItems()) {
+            if (mainHand.is(item) || offHand.is(item)) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    /** The master switch: on, and holding an end crystal if that is required. */
+    /** The master switch: on, and holding one of the activation items if that is required. */
     public boolean active() {
-        return this.enabled && (!this.requireEndCrystal || holdingEndCrystal());
+        return this.enabled && (!this.restrictToItems || holdingActivationItem());
     }
 
     public boolean placeWhileMining() {
