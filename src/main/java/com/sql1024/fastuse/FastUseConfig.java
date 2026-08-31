@@ -108,8 +108,8 @@ public class FastUseConfig {
         if (!this.enabled || (this.restrictToItems && !holdingActivationItem())) {
             return false;
         }
-        // Never speed up glowstone aimed at an anchor that is already charged.
-        return !aimingAtChargedAnchor();
+        // A click the mod diverts elsewhere runs at vanilla speed.
+        return !divertedAtCrosshair();
     }
 
     /** True when this stack would top up a respawn anchor at {@code pos} that already holds a charge. */
@@ -126,7 +126,12 @@ public class FastUseConfig {
                 && state.getValue(RespawnAnchorBlock.CHARGE) > 0;
     }
 
-    private boolean aimingAtChargedAnchor() {
+    /**
+     * True when a click right now would be diverted: to the totem rather than more charge, or to
+     * obsidian rather than a crystal. Those clicks keep vanilla's delay, so holding the button
+     * cannot rattle out anchor charges or a wall of obsidian.
+     */
+    private boolean divertedAtCrosshair() {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null
                 || !(client.hitResult instanceof BlockHitResult hit)
@@ -135,7 +140,8 @@ public class FastUseConfig {
         }
         LocalPlayer player = client.player;
         return chargingChargedAnchor(player.getMainHandItem(), hit.getBlockPos())
-                || chargingChargedAnchor(player.getOffhandItem(), hit.getBlockPos());
+                || chargingChargedAnchor(player.getOffhandItem(), hit.getBlockPos())
+                || needsObsidianFirst(player.getMainHandItem(), hit);
     }
 
     /**
