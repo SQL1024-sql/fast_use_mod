@@ -12,8 +12,12 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RespawnAnchorBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
@@ -42,6 +46,8 @@ public class FastUseConfig {
     public int useDelayTicks = 0;
     /** Swap to a hotbar totem instead of charging a respawn anchor that already holds a charge. */
     public boolean anchorTotemSwap = true;
+    /** Place obsidian first when the end crystal in hand cannot go where you are aiming. */
+    public boolean crystalObsidianSwap = true;
 
     public static FastUseConfig get() {
         if (instance == null) {
@@ -132,11 +138,42 @@ public class FastUseConfig {
                 || chargingChargedAnchor(player.getOffhandItem(), hit.getBlockPos());
     }
 
-    /** The first hotbar slot holding a totem of undying, or -1 when there is none. */
-    public static int hotbarTotemSlot(LocalPlayer player) {
+    /**
+     * True when the end crystal in hand cannot be placed where you are aiming, so a block of
+     * obsidian has to go down first.
+     */
+    public boolean needsObsidianFirst(ItemStack stack, BlockHitResult hitResult) {
+        if (!this.enabled || !this.crystalObsidianSwap || !stack.is(Items.END_CRYSTAL)) {
+            return false;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.level == null) {
+            return false;
+        }
+        return !canPlaceCrystalOn(client.level, hitResult.getBlockPos());
+    }
+
+    /** The same checks EndCrystalItem.useOn makes before it spawns the crystal. */
+    public static boolean canPlaceCrystalOn(Level level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (!state.is(Blocks.OBSIDIAN) && !state.is(Blocks.BEDROCK)) {
+            return false;
+        }
+        BlockPos above = pos.above();
+        if (!level.isEmptyBlock(above)) {
+            return false;
+        }
+        double x = above.getX();
+        double y = above.getY();
+        double z = above.getZ();
+        return level.getEntities((Entity) null, new AABB(x, y, z, x + 1.0, y + 2.0, z + 1.0)).isEmpty();
+    }
+
+    /** The first hotbar slot holding {@code item}, or -1 when there is none. */
+    public static int hotbarSlot(LocalPlayer player, Item item) {
         Inventory inventory = player.getInventory();
         for (int slot = 0; slot < Inventory.SELECTION_SIZE; slot++) {
-            if (inventory.getItem(slot).is(Items.TOTEM_OF_UNDYING)) {
+            if (inventory.getItem(slot).is(item)) {
                 return slot;
             }
         }
