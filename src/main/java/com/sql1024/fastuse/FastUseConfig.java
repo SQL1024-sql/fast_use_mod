@@ -5,10 +5,17 @@ import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.RespawnAnchorBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -33,6 +40,8 @@ public class FastUseConfig {
     public List<String> items = DEFAULT_ITEMS;
     /** Ticks to leave between item uses while fast use is active; 0 removes the delay entirely. */
     public int useDelayTicks = 0;
+    /** Swap to a hotbar totem instead of charging a respawn anchor that already holds a charge. */
+    public boolean anchorTotemSwap = true;
 
     public static FastUseConfig get() {
         if (instance == null) {
@@ -90,7 +99,48 @@ public class FastUseConfig {
 
     /** The master switch: on, and holding one of the activation items if that is required. */
     public boolean active() {
-        return this.enabled && (!this.restrictToItems || holdingActivationItem());
+        if (!this.enabled || (this.restrictToItems && !holdingActivationItem())) {
+            return false;
+        }
+        // Never speed up glowstone aimed at an anchor that is already charged.
+        return !aimingAtChargedAnchor();
+    }
+
+    /** True when this stack would top up a respawn anchor at {@code pos} that already holds a charge. */
+    public boolean chargingChargedAnchor(ItemStack stack, BlockPos pos) {
+        if (!this.enabled || !this.anchorTotemSwap || !stack.is(Items.GLOWSTONE)) {
+            return false;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.level == null) {
+            return false;
+        }
+        BlockState state = client.level.getBlockState(pos);
+        return state.getBlock() instanceof RespawnAnchorBlock
+                && state.getValue(RespawnAnchorBlock.CHARGE) > 0;
+    }
+
+    private boolean aimingAtChargedAnchor() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null
+                || !(client.hitResult instanceof BlockHitResult hit)
+                || client.hitResult.getType() != HitResult.Type.BLOCK) {
+            return false;
+        }
+        LocalPlayer player = client.player;
+        return chargingChargedAnchor(player.getMainHandItem(), hit.getBlockPos())
+                || chargingChargedAnchor(player.getOffhandItem(), hit.getBlockPos());
+    }
+
+    /** The first hotbar slot holding a totem of undying, or -1 when there is none. */
+    public static int hotbarTotemSlot(LocalPlayer player) {
+        Inventory inventory = player.getInventory();
+        for (int slot = 0; slot < Inventory.SELECTION_SIZE; slot++) {
+            if (inventory.getItem(slot).is(Items.TOTEM_OF_UNDYING)) {
+                return slot;
+            }
+        }
+        return -1;
     }
 
     /** The use delay to enforce: the configured one while active, otherwise vanilla's own. */

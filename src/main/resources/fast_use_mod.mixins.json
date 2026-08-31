@@ -4,7 +4,8 @@
 	"package": "com.sql1024.fastuse.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
-		"MinecraftMixin"
+		"MinecraftMixin",
+		"MultiPlayerGameModeMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

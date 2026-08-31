@@ -3,7 +3,7 @@
 	"id": "fast_use_mod",
 	"version": "${version}",
 	"name": "Fast Use",
-	"description": "Removes the delay between item uses while you hold an end crystal or glowstone.",
+	"description": "Removes the delay between item uses while you hold an end crystal or glowstone, and swaps to a hotbar totem instead of recharging a respawn anchor.",
 	"authors": [
 		"sql1024-sql"
 	],
