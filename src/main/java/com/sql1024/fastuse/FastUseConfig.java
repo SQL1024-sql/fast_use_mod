@@ -44,6 +44,8 @@ public class FastUseConfig {
     public List<String> items = DEFAULT_ITEMS;
     /** Ticks to leave between item uses while fast use is active; 0 removes the delay entirely. */
     public int useDelayTicks = 0;
+    /** Let the use button work while the attack button is held down and breaking a block. */
+    public boolean placeWhileMining = true;
     /** Swap to a hotbar totem instead of charging a respawn anchor that already holds a charge. */
     public boolean anchorTotemSwap = true;
     /** Place obsidian first when the end crystal in hand cannot go where you are aiming. */
@@ -103,13 +105,24 @@ public class FastUseConfig {
         return false;
     }
 
-    /** The master switch: on, and holding one of the activation items if that is required. */
+    /** On, and holding one of the activation items if that is required. */
+    private boolean gateOpen() {
+        return this.enabled && (!this.restrictToItems || holdingActivationItem());
+    }
+
+    /** Whether the use delay should be removed right now. */
     public boolean active() {
-        if (!this.enabled || (this.restrictToItems && !holdingActivationItem())) {
-            return false;
-        }
         // A click the mod diverts elsewhere runs at vanilla speed.
-        return !divertedAtCrosshair();
+        return gateOpen() && !divertedAtCrosshair();
+    }
+
+    /**
+     * Whether using an item should work while a block is being broken. Unlike {@link #active()}
+     * this ignores the crosshair: diverting a click changes how fast it repeats, not whether the
+     * attack button is allowed to block it.
+     */
+    public boolean placeWhileMining() {
+        return gateOpen() && this.placeWhileMining;
     }
 
     /** True when this stack would top up a respawn anchor at {@code pos} that already holds a charge. */
