@@ -58,6 +58,10 @@ public class FastUseConfig {
     public boolean crystalObsidianSwap = true;
     /** Hotbar key (1-9) to fall back to when there is no totem anywhere to set the anchor off with. */
     public int fallbackHotbarKey = 2;
+    /** Select the respawn anchor again once the one that was armed has gone off. */
+    public boolean returnToAnchorSlot = true;
+    /** Hold a totem in the main hand while the offhand has none. */
+    public boolean offhandTotemGuard = true;
 
     public static FastUseConfig get() {
         if (instance == null) {
@@ -164,7 +168,7 @@ public class FastUseConfig {
         return client != null && client.level != null && chargedAnchorAt(client.level, pos);
     }
 
-    private static boolean chargedAnchorAt(Level level, BlockPos pos) {
+    public static boolean chargedAnchorAt(Level level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
         return state.getBlock() instanceof RespawnAnchorBlock
                 && state.getValue(RespawnAnchorBlock.CHARGE) > 0;
@@ -220,38 +224,8 @@ public class FastUseConfig {
         return Math.clamp(this.fallbackHotbarKey, 1, Inventory.SELECTION_SIZE) - 1;
     }
 
-    /** The first slot outside the hotbar holding a totem of undying, or -1 when there is none. */
-    public static int backpackTotemSlot(LocalPlayer player) {
-        Inventory inventory = player.getInventory();
-        for (int slot = Inventory.SELECTION_SIZE; slot < Inventory.INVENTORY_SIZE; slot++) {
-            if (inventory.getItem(slot).is(Items.TOTEM_OF_UNDYING)) {
-                return slot;
-            }
-        }
-        return -1;
-    }
 
-    /** The first empty hotbar slot, or -1 when the hotbar is full. */
-    public static int emptyHotbarSlot(LocalPlayer player) {
-        Inventory inventory = player.getInventory();
-        for (int slot = 0; slot < Inventory.SELECTION_SIZE; slot++) {
-            if (inventory.getItem(slot).isEmpty()) {
-                return slot;
-            }
-        }
-        return -1;
-    }
 
-    /** The first hotbar slot holding {@code item}, or -1 when there is none. */
-    public static int hotbarSlot(LocalPlayer player, Item item) {
-        Inventory inventory = player.getInventory();
-        for (int slot = 0; slot < Inventory.SELECTION_SIZE; slot++) {
-            if (inventory.getItem(slot).is(item)) {
-                return slot;
-            }
-        }
-        return -1;
-    }
 
     /** The use delay to enforce: the configured one while active, otherwise vanilla's own. */
     public int useDelayTicks() {

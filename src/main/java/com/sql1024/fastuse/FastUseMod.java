@@ -36,6 +36,7 @@ public class FastUseMod implements ClientModInitializer {
     }
 
     private void onEndTick(Minecraft client) {
+        HotbarAssist.tick(client);
         while (this.toggleKey.consumeClick()) {
             FastUseConfig config = FastUseConfig.get();
             config.enabled = !config.enabled;
