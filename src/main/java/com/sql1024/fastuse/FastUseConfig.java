@@ -144,11 +144,8 @@ public class FastUseConfig {
             return false;
         }
         LocalPlayer player = client.player;
-        if (holding(player, Items.TOTEM_OF_UNDYING)) {
-            return true;
-        }
-        // The click that swaps: glowstone in hand and a totem to swap to.
-        return holding(player, Items.GLOWSTONE) && hotbarSlot(player, Items.TOTEM_OF_UNDYING) >= 0;
+        // Glowstone whether or not a totem is there to swap to, and the totem that sets it off.
+        return holding(player, Items.GLOWSTONE) || holding(player, Items.TOTEM_OF_UNDYING);
     }
 
     private static boolean holding(LocalPlayer player, Item item) {
@@ -180,9 +177,8 @@ public class FastUseConfig {
     }
 
     /**
-     * True when a click right now would be diverted: to the totem rather than more charge, or to
-     * obsidian rather than a crystal. Those clicks keep vanilla's delay, so holding the button
-     * cannot rattle out anchor charges or a wall of obsidian.
+     * True when a click right now would be diverted to obsidian rather than placing a crystal.
+     * Those clicks keep vanilla's delay, so holding the button cannot lay a wall of obsidian.
      */
     private boolean divertedAtCrosshair() {
         Minecraft client = Minecraft.getInstance();
@@ -191,10 +187,7 @@ public class FastUseConfig {
                 || client.hitResult.getType() != HitResult.Type.BLOCK) {
             return false;
         }
-        LocalPlayer player = client.player;
-        return chargingChargedAnchor(player.getMainHandItem(), hit.getBlockPos())
-                || chargingChargedAnchor(player.getOffhandItem(), hit.getBlockPos())
-                || needsObsidianFirst(player.getMainHandItem(), hit);
+        return needsObsidianFirst(client.player.getMainHandItem(), hit);
     }
 
     /**
