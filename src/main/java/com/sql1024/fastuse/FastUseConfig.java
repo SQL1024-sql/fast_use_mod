@@ -33,10 +33,16 @@ public class FastUseConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static FastUseConfig instance;
 
-    public static final List<String> DEFAULT_ITEMS = List.of("minecraft:end_crystal", "minecraft:glowstone");
+    public static final List<String> DEFAULT_ITEMS = List.of("minecraft:end_crystal");
+    /** What DEFAULT_ITEMS was before the anchor swap made glowstone's fast use pointless. */
+    private static final List<String> ITEMS_WITH_GLOWSTONE =
+            List.of("minecraft:end_crystal", "minecraft:glowstone");
+    private static final int CURRENT_VERSION = 2;
 
     private transient List<Item> resolvedItems;
 
+    /** 0 on files written before versioning; migrate() brings those up to date. */
+    public int configVersion = 0;
     public boolean enabled = true;
     /** When true (the default) the use delay is only removed while one of {@link #items} is held. */
     public boolean restrictToItems = true;
@@ -112,8 +118,41 @@ public class FastUseConfig {
 
     /** Whether the use delay should be removed right now. */
     public boolean active() {
+        if (!this.enabled) {
+            return false;
+        }
+        if (anchorSequence()) {
+            return true;
+        }
         // A click the mod diverts elsewhere runs at vanilla speed.
         return gateOpen() && !divertedAtCrosshair();
+    }
+
+    /**
+     * The anchor sequence — swapping to the totem, then setting the anchor off with it — runs
+     * without delay whatever the item list says, so charging and blowing it up are back to back.
+     */
+    private boolean anchorSequence() {
+        if (!this.anchorTotemSwap) {
+            return false;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null || client.level == null
+                || !(client.hitResult instanceof BlockHitResult hit)
+                || client.hitResult.getType() != HitResult.Type.BLOCK
+                || !chargedAnchorAt(client.level, hit.getBlockPos())) {
+            return false;
+        }
+        LocalPlayer player = client.player;
+        if (holding(player, Items.TOTEM_OF_UNDYING)) {
+            return true;
+        }
+        // The click that swaps: glowstone in hand and a totem to swap to.
+        return holding(player, Items.GLOWSTONE) && hotbarSlot(player, Items.TOTEM_OF_UNDYING) >= 0;
+    }
+
+    private static boolean holding(LocalPlayer player, Item item) {
+        return player.getMainHandItem().is(item) || player.getOffhandItem().is(item);
     }
 
     /**
@@ -131,10 +170,11 @@ public class FastUseConfig {
             return false;
         }
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.level == null) {
-            return false;
-        }
-        BlockState state = client.level.getBlockState(pos);
+        return client != null && client.level != null && chargedAnchorAt(client.level, pos);
+    }
+
+    private static boolean chargedAnchorAt(Level level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
         return state.getBlock() instanceof RespawnAnchorBlock
                 && state.getValue(RespawnAnchorBlock.CHARGE) > 0;
     }
@@ -214,6 +254,7 @@ public class FastUseConfig {
             try (BufferedReader reader = Files.newBufferedReader(path)) {
                 FastUseConfig loaded = GSON.fromJson(reader, FastUseConfig.class);
                 if (loaded != null) {
+                    loaded.migrate();
                     return loaded;
                 }
             } catch (Exception e) {
@@ -221,8 +262,23 @@ public class FastUseConfig {
             }
         }
         FastUseConfig config = new FastUseConfig();
+        config.configVersion = CURRENT_VERSION;
         config.save();
         return config;
+    }
+
+    /** Brings a config file written by an older version up to date, in place. */
+    private void migrate() {
+        if (this.configVersion >= CURRENT_VERSION) {
+            return;
+        }
+        if (ITEMS_WITH_GLOWSTONE.equals(this.items)) {
+            // The anchor swap handles glowstone now, so it no longer needs the delay removed.
+            this.items = DEFAULT_ITEMS;
+            FastUseMod.LOGGER.info("Removed glowstone from items; the respawn anchor swap covers it");
+        }
+        this.configVersion = CURRENT_VERSION;
+        save();
     }
 
     public void save() {
