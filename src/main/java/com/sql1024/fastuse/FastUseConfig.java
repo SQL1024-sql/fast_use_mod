@@ -56,6 +56,8 @@ public class FastUseConfig {
     public boolean anchorTotemSwap = true;
     /** Place obsidian first when the end crystal in hand cannot go where you are aiming. */
     public boolean crystalObsidianSwap = true;
+    /** Hotbar key (1-9) to fall back to when there is no totem anywhere to set the anchor off with. */
+    public int fallbackHotbarKey = 2;
 
     public static FastUseConfig get() {
         if (instance == null) {
@@ -129,27 +131,19 @@ public class FastUseConfig {
     }
 
     /**
-     * The anchor sequence — swapping to the totem, then setting the anchor off with it — runs
-     * without delay whatever the item list says, so charging and blowing it up are back to back.
+     * A charged anchor under the crosshair runs without delay whatever is in hand, so charging it,
+     * getting a totem up and setting it off are three ticks in a row. Held items are deliberately
+     * not checked: the click that sets it off may be any item the fallback key happens to hold.
      */
     private boolean anchorSequence() {
         if (!this.anchorTotemSwap) {
             return false;
         }
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null || client.level == null
-                || !(client.hitResult instanceof BlockHitResult hit)
-                || client.hitResult.getType() != HitResult.Type.BLOCK
-                || !chargedAnchorAt(client.level, hit.getBlockPos())) {
-            return false;
-        }
-        LocalPlayer player = client.player;
-        // Glowstone whether or not a totem is there to swap to, and the totem that sets it off.
-        return holding(player, Items.GLOWSTONE) || holding(player, Items.TOTEM_OF_UNDYING);
-    }
-
-    private static boolean holding(LocalPlayer player, Item item) {
-        return player.getMainHandItem().is(item) || player.getOffhandItem().is(item);
+        return client != null && client.level != null
+                && client.hitResult instanceof BlockHitResult hit
+                && client.hitResult.getType() == HitResult.Type.BLOCK
+                && chargedAnchorAt(client.level, hit.getBlockPos());
     }
 
     /**
@@ -219,6 +213,33 @@ public class FastUseConfig {
         double y = above.getY();
         double z = above.getZ();
         return level.getEntities((Entity) null, new AABB(x, y, z, x + 1.0, y + 2.0, z + 1.0)).isEmpty();
+    }
+
+    /** The hotbar slot behind {@link #fallbackHotbarKey}, as an index. */
+    public int fallbackSlot() {
+        return Math.clamp(this.fallbackHotbarKey, 1, Inventory.SELECTION_SIZE) - 1;
+    }
+
+    /** The first slot outside the hotbar holding a totem of undying, or -1 when there is none. */
+    public static int backpackTotemSlot(LocalPlayer player) {
+        Inventory inventory = player.getInventory();
+        for (int slot = Inventory.SELECTION_SIZE; slot < Inventory.INVENTORY_SIZE; slot++) {
+            if (inventory.getItem(slot).is(Items.TOTEM_OF_UNDYING)) {
+                return slot;
+            }
+        }
+        return -1;
+    }
+
+    /** The first empty hotbar slot, or -1 when the hotbar is full. */
+    public static int emptyHotbarSlot(LocalPlayer player) {
+        Inventory inventory = player.getInventory();
+        for (int slot = 0; slot < Inventory.SELECTION_SIZE; slot++) {
+            if (inventory.getItem(slot).isEmpty()) {
+                return slot;
+            }
+        }
+        return -1;
     }
 
     /** The first hotbar slot holding {@code item}, or -1 when there is none. */
